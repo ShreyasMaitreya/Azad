@@ -1,0 +1,68 @@
+#include<math.h>
+#include<EEPROM.h>
+int Current, Voltage;
+  float i,v,dI,dV,R,Q;
+  float Ro = 1e-3; //Ro is internal resistance of cell at the time of manufacturing
+  float a,b;
+  float capacity = 4.5*3600; 
+  float SOC = 0;
+  float SOH = 0;
+  float soc;// addresses in eeprom
+  float soh;// addresses in eeprom  
+  float DOD;// address in eeprom
+void SOC_Calc()
+ {
+  //SOC Calculation
+  v = analogRead(Voltage);
+  a = v;
+  delay(1);
+  v = analogRead(Voltage);
+  dV = v-a;
+  while(dV<0) //dV<0 signifies discharging
+  { 
+    i = analogRead(Current);
+    Q = Q+i*1e-3; //current is read at every 1 millisecond
+    SOC = (1-Q/capacity)*100;  
+    delay(1);
+  }
+  while(dV>0)
+  {
+    i = analogRead(Current);
+    Q = Q+i*1e-3;
+    SOC = (Q/capacity)*100;
+    delay(1);
+  }
+ }
+void SOH_Calc()
+{
+  //SOH Calculation
+  while(v>=4.11) //Take value as close as possible to end of charge voltage as per chemistry and number of cells in series
+  {
+     a = v;
+     delay(1);
+     v = analogRead(Voltage);
+     dV = abs(v-a);
+     i = analogRead(Current);
+     b=i;
+     delay(1);
+     i = analogRead(Current);
+     dI= abs(b-i);
+     R = dV/dI;
+  }
+  SOH=(R/Ro)*100;
+  EEPROM.write(soc, SOC);
+  EEPROM.write(soh, SOH);
+  EEPROM.write(DOD, Q);
+}
+ void setup()
+ {
+  pinMode(Current, INPUT);
+  pinMode(Voltage, INPUT);
+  Q = EEPROM.read(DOD); //Suppose the battery is used up to 45% SOC and then disconnected from load then again it is reconnected again at 45% SOC then we must know how much the battery was drained before.
+ }
+void loop()
+{
+  SOC_Calc();
+  SOH_Calc();
+  capacity = capacity*(R/Ro);//Capacity of battery degrades over time.
+}
