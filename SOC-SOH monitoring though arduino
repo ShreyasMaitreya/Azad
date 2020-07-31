@@ -4,12 +4,15 @@ int Current, Voltage;
   float i,v,dI,dV,R,Q;
   float Ro = 1e-3; //Ro is internal resistance of cell at the time of manufacturing
   float a,b;
-  float capacity = 4.5*3600; 
+  float capacity = 4.5*3600; //set capacity as per battery datasheet
   float SOC = 0;
   float SOH = 0;
   float soc;// addresses in eeprom
   float soh;// addresses in eeprom  
   float DOD;// address in eeprom
+  int c[5];
+  int k=1;
+  int RESET;
 void SOC_Calc()
  {
   //SOC Calculation
@@ -54,11 +57,23 @@ void SOH_Calc()
   EEPROM.write(soh, SOH);
   EEPROM.write(DOD, Q);
 }
+ void overcurrent()
+ {
+  while(k<=5)
+   {
+    delay(10000); //once ptc trips, it needs to be given reset after 10s
+    k++;
+   }
+  }
  void setup()
  {
   pinMode(Current, INPUT);
   pinMode(Voltage, INPUT);
-  Q = EEPROM.read(DOD); //Suppose the battery is used up to 45% SOC and then disconnected from load then again it is reconnected again at 45% SOC then we must know how much the battery was drained before.
+  Q = EEPROM.read(DOD);
+  attachInterrupt(c[0],overcurrent,  FALLING); //once ptc trips, it gives an interrupt from HIGH to LOW
+  attachInterrupt(c[1], overcurrent, FALLING);
+  attachInterrupt(c[2], overcurrent, FALLING);
+  attachInterrupt(c[3], overcurrent, FALLING);
  }
 void loop()
 {
